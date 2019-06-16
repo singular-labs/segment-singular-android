@@ -5,14 +5,10 @@ import android.os.Bundle;
 
 import com.segment.analytics.Analytics;
 import com.segment.analytics.ValueMap;
-import com.segment.analytics.integrations.AliasPayload;
-import com.segment.analytics.integrations.GroupPayload;
 import com.segment.analytics.integrations.IdentifyPayload;
 import com.segment.analytics.integrations.Integration;
-import com.segment.analytics.integrations.ScreenPayload;
 import com.segment.analytics.integrations.TrackPayload;
 import com.singular.sdk.Singular;
-import com.singular.sdk.SingularConfig;
 import com.singular.sdk.internal.Utils;
 
 public class SingularIntegration extends Integration<Singular> {
@@ -33,7 +29,6 @@ public class SingularIntegration extends Integration<Singular> {
 
     public SingularIntegration(ValueMap settings, Analytics analytics) {
         super();
-        // TODO: init sdk according to the Segment's instructions. the code below is not the final one.
         String apiKey = settings.getString("apikey");
         String secret = settings.getString("secret");
         Singular.init(analytics.getApplication().getApplicationContext(), apiKey, secret);
@@ -49,7 +44,9 @@ public class SingularIntegration extends Integration<Singular> {
     public void track(TrackPayload track) {
         super.track(track);
 
-        if (track.properties().revenue() > 0) {
+        if (track.properties().revenue() == 0) {
+            Singular.event(track.event());
+        } else {
             String currency = track.properties().currency();
 
             if (Utils.isEmptyOrNull(currency)) {
@@ -57,8 +54,6 @@ public class SingularIntegration extends Integration<Singular> {
             }
 
             Singular.customRevenue(track.event(), currency, track.properties().revenue());
-        } else {
-            Singular.event(track.event());
         }
     }
 }
