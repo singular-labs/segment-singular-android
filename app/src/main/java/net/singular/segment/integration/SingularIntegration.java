@@ -1,7 +1,4 @@
-package com.singular.segment_integration;
-
-import android.app.Activity;
-import android.os.Bundle;
+package net.singular.segment.integration;
 
 import com.segment.analytics.Analytics;
 import com.segment.analytics.ValueMap;
@@ -31,7 +28,10 @@ public class SingularIntegration extends Integration<Singular> {
         super();
         String apiKey = settings.getString("apikey");
         String secret = settings.getString("secret");
-        Singular.init(analytics.getApplication().getApplicationContext(), apiKey, secret);
+
+        if (apiKey != null && secret != null) {
+            Singular.init(analytics.getApplication().getApplicationContext(), apiKey, secret);
+        }
     }
 
     @Override
@@ -44,9 +44,7 @@ public class SingularIntegration extends Integration<Singular> {
     public void track(TrackPayload track) {
         super.track(track);
 
-        if (track.properties().revenue() == 0) {
-            Singular.event(track.event());
-        } else {
+        if (track.properties().revenue() != 0) {
             String currency = track.properties().currency();
 
             if (Utils.isEmptyOrNull(currency)) {
@@ -54,6 +52,14 @@ public class SingularIntegration extends Integration<Singular> {
             }
 
             Singular.customRevenue(track.event(), currency, track.properties().revenue());
+        } else {
+            Singular.event(track.event());
         }
+    }
+
+    @Override
+    public void reset() {
+        super.reset();
+        Singular.unsetCustomUserId();
     }
 }
