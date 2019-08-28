@@ -1,2 +1,2 @@
 # segment-singular-android
-Singular's SDK integration with Segment
+Singular's Android SDK integration with Segment
