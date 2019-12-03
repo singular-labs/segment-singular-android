@@ -26,7 +26,7 @@ public class SingularIntegration extends Integration<Singular> {
 
     public SingularIntegration(ValueMap settings, Analytics analytics) {
         super();
-        String apiKey = settings.getString("apikey");
+        String apiKey = settings.getString("apiKey");
         String secret = settings.getString("secret");
 
         if (apiKey != null && secret != null) {
