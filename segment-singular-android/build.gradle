@@ -1,24 +1,145 @@
 apply plugin: 'com.android.library'
+apply plugin: 'maven'
+
+ext.gitCommit = 'git rev-parse --short HEAD'.execute([], project.rootDir).text.trim()
+ext.gitBranch = 'git rev-parse --abbrev-ref HEAD'.execute([], project.rootDir).text.trim()
+log("Git info: commit = " + gitCommit + ", branch = " + gitBranch)
 
 android {
-    compileSdkVersion 25
+    compileSdkVersion 28
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 25
+        targetSdkVersion 28
         versionCode 1
-        versionName "1.0.0"
+        versionName "2.0.0"
+        archivesBaseName = getArchiveBaseName()
+
+        // append to BuildConfig
+        buildConfigField "String", "GIT_INFO", "\"${gitCommit}.${gitBranch}\""
+        buildConfigField "long", "BUILD_TIME", System.currentTimeMillis() + "L"
     }
     buildTypes {
         release {
-
+            String env = "PROD"
+            buildConfigField "String", "SINGULAR_ENV", "\"${env}\""
+        }
+        // Developer
+        debug {
+            String env = "DEBUG"
+            buildConfigField "String", "SINGULAR_ENV", "\"${env}\""
         }
     }
 
-    buildToolsVersion = '25.0.2'
+    //Required for Jar Info.txt
+    sourceSets {
+        main {
+            resources {
+                srcDirs "src/main/assets"
+            }
+        }
+    }
+    buildToolsVersion = '25.0.3'
 }
 
+String getArchiveBaseName() {
+    return "singular_segment_sdk-v${android.defaultConfig.versionName}-${gitCommit}.${gitBranch}"
+}
+
+task(getReleaseJarName) {
+    println "${getArchiveBaseName()}-release.aar"
+}
+
+task(generatePomFile) {
+    pom {
+        project {
+            modelVersion '4.0.0'
+            groupId 'net.singular.segment.integration'
+            artifactId 'singular_segment_sdk'
+            version "${android.defaultConfig.versionName}"
+            packaging 'aar'
+            description 'POM created'
+        }
+    }.writeTo("generated-sdk.pom")
+}
+
+task(makeJar) {
+    //Empty - Functionality added below in variant tasks
+}
+
+// Generate jar creation tasks for all build variants
+android.libraryVariants.all { variant ->
+
+    //Create Info file for every variant before Assets generation
+    tasks.findByName("generate${variant.name.capitalize()}Assets").doFirst {
+        createInfoFileForEnv(variant.name)
+    }
+
+    //Pre-Clean up for Assets - for Info.txt
+    tasks.findByName("pre${variant.name.capitalize()}Build").doFirst {
+        delete 'src/main/assets'
+        log('Build Info File - Pre-Cleanup done.')
+    }
+
+    //Post-Clean up for Assets - for Info.txt
+    Task bundles = tasks.findByName("bundle${variant.name.capitalize()}")
+
+    if(bundles != null){
+        bundles.doFirst {
+            delete 'src/main/assets'
+            log('Build Info File - Post-Cleanup done.')
+        }
+    }
+
+    String archiveName = "${getArchiveBaseName()}-${variant.name}"
+    String outputDir = "${buildDir.getPath()}/outputs"
+
+    //Create Jar
+    String taskName = "makeJar${variant.name.capitalize()}"
+
+    // Create a jar by extracting it from the assembled .aar
+    // This ensures that products distributed via .aar and .jar exactly the same bits
+    task(taskName, type: Copy) {
+        dependsOn "assemble${variant.name.capitalize()}"
+        from(zipTree("${outputDir}/aar/${archiveName}.aar"))
+        into("${outputDir}/jar/")
+        include('classes.jar')
+        rename('classes.jar', "${archiveName}.jar")
+    }
+
+    makeJar.dependsOn tasks[taskName]
+}
+
+void createInfoFileForEnv(String env) {
+    //Create Meta Info Text file
+    def assetsDir = android.sourceSets.main.assets.srcDirs.toArray()[0]
+    assetsDir.mkdir()
+    def infoFile = new File(assetsDir, 'info.txt')
+
+    def printWriter = infoFile.newWriter(false)
+    printWriter.append("name: ${getArchiveBaseName()}")
+    printWriter.newLine()
+    printWriter.append("env: ${env}")
+    printWriter.newLine()
+    printWriter.append("git_commit: ${gitCommit}")
+    printWriter.newLine()
+    printWriter.append("git_branch: ${gitBranch}")
+    printWriter.newLine()
+    printWriter.append("version_name: ${android.defaultConfig.versionName}")
+    printWriter.newLine()
+    printWriter.append("version_code:${android.defaultConfig.versionCode}")
+    printWriter.newLine()
+    printWriter.append("build_date: ${new Date().format("EEE, d MMM yyyy HH:mm:ss Z")}")
+    printWriter.newLine()
+    printWriter.flush()
+    printWriter.close()
+    log("Info.txt created for env: " + env)
+}
+
+void log(String msg) {
+    println("*** Singular SDK Build: " + msg)
+}
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.segment.analytics.android:analytics:4.3.1'
-    implementation 'com.singular.sdk:singular_sdk:9.2.7'
+    implementation 'com.singular.sdk:singular_sdk:12.0.0'
 }
