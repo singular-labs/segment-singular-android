@@ -11,7 +11,7 @@ android {
         minSdkVersion 14
         targetSdkVersion 28
         versionCode 1
-        versionName "2.0.1"
+        versionName "2.0.2"
         archivesBaseName = getArchiveBaseName()
 
         // append to BuildConfig
@@ -58,6 +58,13 @@ task(generatePomFile) {
             version "${android.defaultConfig.versionName}"
             packaging 'aar'
             description 'POM created'
+            dependencies {
+                dependency {
+                    groupId 'com.singular.sdk'
+                    artifactId 'singular_sdk'
+                    version "12.0.6"
+                }
+            }
         }
     }.writeTo("generated-sdk.pom")
 }
@@ -141,5 +148,5 @@ void log(String msg) {
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'com.segment.analytics.android:analytics:4.3.1'
-    implementation 'com.singular.sdk:singular_sdk:12.0.3'
+    implementation 'com.singular.sdk:singular_sdk:12.0.6'
 }
