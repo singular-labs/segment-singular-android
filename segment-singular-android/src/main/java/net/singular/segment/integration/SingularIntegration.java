@@ -1,16 +1,33 @@
 package net.singular.segment.integration;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+
 import com.segment.analytics.Analytics;
 import com.segment.analytics.ValueMap;
 import com.segment.analytics.integrations.IdentifyPayload;
 import com.segment.analytics.integrations.Integration;
 import com.segment.analytics.integrations.TrackPayload;
+import com.singular.sdk.SDIDAccessorHandler;
 import com.singular.sdk.Singular;
+import com.singular.sdk.SingularConfig;
+import com.singular.sdk.SingularDeviceAttributionHandler;
+import com.singular.sdk.SingularLinkHandler;
 import com.singular.sdk.internal.Utils;
 
 public class SingularIntegration extends Integration<Singular> {
+    public interface LinkHandler extends SingularLinkHandler {}
 
+    public interface SdidAccessorHandler extends SDIDAccessorHandler {}
+    public interface DeviceAttributionCallback extends SingularDeviceAttributionHandler {}
     private static final String SINGULAR_KEY = "Singular";
+    private static DeviceAttributionCallback deviceAttributionHandler = null;
+    private static String customSdid = null;
+    private static SdidAccessorHandler sdidAccessorHandler = null;
+    private static LinkHandler linkHandler = null;
+    private static Intent intent = null;
+
 
     public static final Factory FACTORY = new Factory() {
         @Override
@@ -29,9 +46,20 @@ public class SingularIntegration extends Integration<Singular> {
         String apiKey = settings.getString("apiKey");
         String secret = settings.getString("secret");
 
+        SingularConfig config = new SingularConfig(apiKey, secret);
+        config.withCustomSdid(customSdid, sdidAccessorHandler);
+        config.withSingularDeviceAttribution(deviceAttributionHandler);
+        config.withSingularLink(intent, linkHandler);
+
         if (apiKey != null && secret != null) {
-            Singular.init(analytics.getApplication().getApplicationContext(), apiKey, secret);
+            Singular.init(analytics.getApplication().getApplicationContext(), config);
         }
+    }
+
+    @Override
+    public void onActivityCreated(Activity activity, Bundle savedInstanceState) {
+        super.onActivityCreated(activity, savedInstanceState);
+        intent = activity.getIntent();
     }
 
     @Override
@@ -61,5 +89,18 @@ public class SingularIntegration extends Integration<Singular> {
     public void reset() {
         super.reset();
         Singular.unsetCustomUserId();
+    }
+
+    public static void setCustomSDID(String customSDID, SdidAccessorHandler sdidHandler) {
+        customSdid = customSDID;
+        sdidAccessorHandler = sdidHandler;
+    }
+
+    public static void setDeviceAttributionCallback(DeviceAttributionCallback deviceAttributionCallback) {
+        deviceAttributionHandler = deviceAttributionCallback;
+    }
+
+    public static void setLinkHandler(LinkHandler singularLinkHandler) {
+        linkHandler = singularLinkHandler;
     }
 }
